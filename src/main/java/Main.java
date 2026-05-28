@@ -1,19 +1,11 @@
-import java.util.Random;
-
 import javax.swing.*;
-import javax.swing.text.NumberFormatter;
-
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 
 public class Main extends JFrame {
-    private JFormattedTextField[] fields = new JFormattedTextField[6];
-    private JLabel outLabel = new JLabel("<html>Введите значения коэффициентов<br>Здесь будет формула и тип</html>");
-    private DrawGraph graph;
-
+    ComponentCreator creator = new ComponentCreator();
+    HyperbolaAnimationPanel graph;
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Main::new);
     }
@@ -22,19 +14,17 @@ public class Main extends JFrame {
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
+                JFormattedTextField[] fields = creator.getFields();
                 double[] params = new double[fields.length];
                 for (int i = 0; i < fields.length; i++) {
                     Object value = fields[i].getValue();
                     params[i] = ((Number) value).doubleValue();
                 }
-
-                Logic.CurveInstance curve = Logic.findCurve(params);
-                outLabel.setText(
-                        "<html>Формула: " + curve.getFormulaString() + "<br>Тип: " + curve.getTypeString() + "</html>");
-                graph.setFunc(curve.getYFunction());
+                graph.setVisible(true);
+                graph.setValues(params[3]*1e22, params[4] * 1e3, params[1] * 1e3, params[2], params[0] * 1e3);
 
                 JOptionPane.showMessageDialog(Main.this,
-                        "Успешно считаны параметры\nТип кривой: " + curve.getTypeString(),
+                        "Успешно просчитана анимация",
                         "Success", JOptionPane.INFORMATION_MESSAGE);
 
             } catch (Exception ex) {
@@ -45,78 +35,26 @@ public class Main extends JFrame {
         }
     }
 
-    private JFormattedTextField createDoubleField() {
-        DecimalFormat doubleFormat = (DecimalFormat) NumberFormat.getNumberInstance();
-        doubleFormat.setGroupingUsed(false);
-        doubleFormat.setMinimumFractionDigits(0);
-        doubleFormat.setMaximumFractionDigits(10);
-        NumberFormatter doubleFormatter = new NumberFormatter(doubleFormat);
-        doubleFormatter.setValueClass(Double.class);
-
-        JFormattedTextField a = new JFormattedTextField(doubleFormatter);
-
-        a.setValue(0.0);
-        a.setColumns(5);
-
-        return a;
-    }
-
-    private JPanel createInputPanel() {
-        final String[] textLabels = {
-                "x<sup>2</sup> +",
-                "xy + ",
-                "y<sup>2</sup> + ",
-                "x + ",
-                "y + ",
-                "= 0"
-        };
-
-        JPanel out = new JPanel();
-        out.setLayout(new FlowLayout());
-        JLabel[] labels = new JLabel[6];
-
-        for (int i = 0; i < 6; i++) {
-            fields[i] = createDoubleField();
-            out.add(fields[i]);
-            labels[i] = new JLabel("<html>" + textLabels[i] + "</html>");
-            out.add(labels[i]);
-        }
-        return out;
-    }
-
     private Component[] createComponents() {
-        JPanel panel = createInputPanel();
+        JPanel panel = creator.createInputPanel(new SubmitListener());
 
-        JButton button = new JButton("Получить значения");
-        button.setSize(220, 50);
-        button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.addActionListener(new SubmitListener());
-
-        outLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JSlider slider = new JSlider(1, 100, 10);
-        JLabel sliderLabel = new JLabel("Масштаб: " + slider.getValue());
-        sliderLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        slider.setOrientation(SwingConstants.HORIZONTAL);
-        slider.setPaintLabels(true);
-        slider.addChangeListener(event -> {
-            sliderLabel.setText("Масштаб: " + slider.getValue());
-            graph.setScale(slider.getValue());
+        JSlider sliderTime = new JSlider(1, 100, 12);
+        JLabel sliderTimeLabel = new JLabel("Время протекания анимации: " + sliderTime.getValue());
+        sliderTimeLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sliderTime.setOrientation(SwingConstants.HORIZONTAL);
+        sliderTime.setPaintLabels(true);
+        sliderTime.addChangeListener(event -> {
+            sliderTimeLabel.setText("Время протекания анимации: " + sliderTime.getValue());
+            graph.setTimeScale(sliderTime.getValue());
         });
 
-        double[] scores = new double[16];
-        Random random = new Random();
-        int maxScore = 20;
-        for (int i = 0; i < scores.length; i++) {
-            scores[i] = random.nextInt(maxScore);
-        }
-        graph = new DrawGraph(x -> new double[] { x }, slider.getValue());
+        graph = new HyperbolaAnimationPanel();
 
-        return new Component[] { panel, button, outLabel, sliderLabel, slider, graph };
+        return new Component[] { panel, sliderTimeLabel, sliderTime, graph };
     }
 
     public Main() {
-        super("Расчет кривой второго порядка");
+        super("Расчет траектории спутника");
         setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
         for (Component comp : createComponents())
